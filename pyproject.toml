@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vscore"
+version = "0.1.0"
+description = "V points for the files of a Git repository, from surviving compressed work and dependents."
+requires-python = ">=3.14"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+vscore = "vscore.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vscore*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
