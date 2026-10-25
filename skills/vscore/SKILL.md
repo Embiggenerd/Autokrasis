@@ -49,7 +49,7 @@ Never work around a STOP: don't split the command, switch tools, or touch `.git/
 If `vscore` is not found, install it once. It needs Python 3.14 or newer and `git`.
 
 ```bash
-python3 -m pip install "vscore @ git+https://github.com/OWNER/autokrasis"   # or a local path to the vscore source
+python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis"
 ```
 
 The first check in a repository scans its history, which takes seconds to a minute. Later checks take
