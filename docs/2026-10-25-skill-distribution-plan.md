@@ -38,7 +38,12 @@ proceeds, so the README must say to install vscore first.
   not run); README routes; `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json` and
   `hooks/`, passing `claude plugin validate .`.
 - Step 6: tagged `v0.1.0`.
-- Step 4 and installing the plugin from GitHub: see the test results in the session that followed.
+- Tested from GitHub, in throwaway folders: `pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis@v0.1.0"`
+  installs version 0.1.0 (license Apache-2.0) and `vscore compare` gives STOP for `rm -rf src` on
+  Flask; `npx skills add Embiggenerd/Autokrasis -a claude-code -a codex` installs the skill in
+  `.agents/skills/vscore`, linked for Claude Code; `claude plugin marketplace add Embiggenerd/Autokrasis`
+  then `claude plugin install vscore@autokrasis` installs one skill and one PreToolUse hook. None of the
+  three has been tried by a live agent on a task yet.
 
 ## Decisions needed
 
