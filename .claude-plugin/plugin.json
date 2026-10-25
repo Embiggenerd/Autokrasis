@@ -1,0 +1,12 @@
+{
+  "name": "vscore",
+  "version": "0.1.0",
+  "description": "Checks Bash, Write and Edit calls with vscore compare and denies those that destroy more than twice the work in the code the bug is about",
+  "author": {
+    "name": "Embiggenerd"
+  },
+  "homepage": "https://github.com/Embiggenerd/Autokrasis",
+  "repository": "https://github.com/Embiggenerd/Autokrasis",
+  "license": "Apache-2.0",
+  "keywords": ["safety", "destructive-actions", "code-value", "hooks"]
+}

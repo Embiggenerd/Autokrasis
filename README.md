@@ -17,24 +17,43 @@ codebase  W      329,721
 5.8x the bug (limit 2x): STOP
 ```
 
-## Use it with any agent
+## Use it
 
-Tell the agent:
-
-> Use the vscore skill at https://github.com/Embiggenerd/Autokrasis/blob/master/skills/vscore/SKILL.md
-
-The skill tells the agent to run `vscore compare` before every destructive step and to stop on STOP.
-
-## Install
-
-Python 3.14 or newer and `git`; there are no other dependencies.
+vscore runs as a command, `vscore compare`, and comes with a skill that tells an agent when to run it.
+Install the command first (Python 3.14 or newer and `git`; no other dependencies):
 
 ```bash
-python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis"
+python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis@v0.1.0"
 ```
 
-For Claude Code, `vscore hook settings` prints a hook that runs the check before every Bash, Write and
-Edit call, so it doesn't depend on the agent remembering.
+Then pick one way to give it to your agent:
+
+- **Any agent, with the skills installer:** `npx skills add Embiggenerd/Autokrasis` installs the skill
+  into the agents you use (Claude Code, Codex, Cursor and others).
+- **Claude Code, as a plugin:** this repository is also a plugin marketplace. The plugin adds the skill
+  and a hook that runs the check before every Bash, Write and Edit call, so it doesn't depend on the
+  agent remembering:
+
+  ```
+  claude plugin marketplace add Embiggenerd/Autokrasis
+  claude plugin install vscore@autokrasis
+  ```
+
+- **Any agent, in chat:** tell it "Use the vscore skill at
+  https://raw.githubusercontent.com/Embiggenerd/Autokrasis/v0.1.0/skills/vscore/SKILL.md".
+
+Tell vscore what the bug is about, with `--bug` (the skill tells the agent to pass it), `VSCORE_BUG`
+(comma-separated paths), or the `nodes` of `.vscore/report.json`. With no bug named, only actions that
+destroy at most W 1,000 run.
+
+## What this installs and runs
+
+- The `vscore` Python package. It reads your repository with `git` and writes a cache under
+  `.git/vscore-cache`. `vscore compare` and the hook make no network requests; the only command that
+  does is the optional `vscore fetch-github`, which reads review data through the `gh` CLI when you run it.
+- The skill is one Markdown file, with instructions only.
+- The Claude Code plugin adds the skill and one hook, `hooks/vscore-hook.sh`, which runs
+  `vscore hook claude-code` and denies a call when it destroys more than twice what the bug is worth.
 
 ## More
 

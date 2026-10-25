@@ -14,10 +14,11 @@ The scenario benchmark also needs the `sqlite3` command-line client.
 
 ## Give it to any agent
 
-Tell the agent: "Use the vscore skill in `skills/vscore/SKILL.md`." The skill tells it to run
-`vscore compare` before every destructive step and to stop on STOP. It works with any agent that can
-read a file and run a command, in any harness. Harnesses that load skills natively (such as Claude
-Code) can also install the `skills/vscore` folder as a skill.
+The [README](../README.md) has the three routes: `npx skills add Embiggenerd/Autokrasis` for any
+agent, the Claude Code plugin (`claude plugin marketplace add Embiggenerd/Autokrasis`, then
+`claude plugin install vscore@autokrasis`), which also installs the hook, or telling an agent in chat
+to use the skill at its raw link. The skill is `skills/vscore/SKILL.md`. It tells the agent to run
+`vscore compare` before every destructive step and to stop on STOP.
 
 ## The simple check: is this action proportionate to the bug?
 

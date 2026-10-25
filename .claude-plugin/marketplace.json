@@ -1,0 +1,14 @@
+{
+  "name": "autokrasis",
+  "description": "vscore: keep a coding agent's destructive changes proportionate to the bug it is fixing",
+  "owner": {
+    "name": "Embiggenerd"
+  },
+  "plugins": [
+    {
+      "name": "vscore",
+      "source": "./",
+      "description": "Checks Bash, Write and Edit calls with vscore compare and denies those that destroy more than twice the work in the code the bug is about"
+    }
+  ]
+}
