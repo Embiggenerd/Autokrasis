@@ -49,8 +49,7 @@ destroy at most W 1,000 run.
 ## What this installs and runs
 
 - The `vscore` Python package. It reads your repository with `git` and writes a cache under
-  `.git/vscore-cache`. `vscore compare` and the hook make no network requests; the only command that
-  does is the optional `vscore fetch-github`, which reads review data through the `gh` CLI when you run it.
+  `.git/vscore-cache`. It makes no network requests.
 - The skill is one Markdown file, with instructions only.
 - The Claude Code plugin adds the skill and one hook, `hooks/vscore-hook.sh`, which runs
   `vscore hook claude-code` and denies a call when it destroys more than twice what the bug is worth.
@@ -58,4 +57,4 @@ destroy at most W 1,000 run.
 ## More
 
 - [docs/usage.md](docs/usage.md): every command
-- [docs/plan.md](docs/plan.md): why, how W is measured, and results
+- [docs/plan.md](docs/plan.md): why, and how W is measured

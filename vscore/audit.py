@@ -1,4 +1,4 @@
-"""Append-only, hash-chained JSON-lines log of gate and broker decisions.
+"""Append-only, hash-chained JSON-lines log of vscore compare's checks.
 
 Each entry carries the hash of the one before it, so editing or deleting an entry breaks the chain
 and `verify` notices.
@@ -11,7 +11,9 @@ import hashlib
 import json
 from pathlib import Path
 
-from vscore.events import canonical
+
+def canonical(value) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 class AuditLog:

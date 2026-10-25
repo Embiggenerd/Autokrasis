@@ -1,4 +1,4 @@
-"""Top-level Python symbols and their line spans, for function-level scores and prices."""
+"""Top-level Python symbols and their line spans, for function-level scores and vscore compare."""
 
 from __future__ import annotations
 

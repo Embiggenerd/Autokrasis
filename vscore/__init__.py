@@ -1,4 +1,4 @@
-"""vscore: V points for the files of a Git repository (see docs/plan.md, "Scoring spec (v1)")."""
+"""vscore: V points for the files of a Git repository (see docs/plan.md, "Scoring spec")."""
 
 __version__ = "0.1.0"
 # /2: `from pkg import Name` follows the package __init__.py's re-export to the defining file.

@@ -22,12 +22,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from vscore import FORMULA_VERSION
-from vscore.actions import from_tool_call, malformed
+from vscore.actions import Context, from_tool_call, malformed
+from vscore.adapters.history import info_bytes
 from vscore.audit import AuditLog
 from vscore.config import Config
-from vscore.gate import build_context, gate_log_path, uncommitted_hours
-from vscore.gitrepo import Repo
+from vscore.gitrepo import GitError, Repo, decode_path
 from vscore.scan import scan
+
+MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit"
 
 _LOSES = {"delete", "overwrite", "rewrite", "unresolved"}
 _TABLE_LOSS = {"drop", "db_reset", "truncate", "bulk_delete", "bulk_update", "drop_column"}
@@ -113,9 +115,9 @@ def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: st
     cfg = cfg or Config()
     root = str(Repo(repo_root).path)
     known = scores(root, cfg)
-    ctx = build_context(root, cwd or root, None)
-    action = from_tool_call(tool_name, tool_input, ctx)
     repo = Repo(root)
+    tracked = {decode_path(p) for p in repo.run("ls-files", "-z").split(b"\0") if p}
+    action = from_tool_call(tool_name, tool_input, Context(repo_root=root, cwd=cwd or root, tracked=tracked))
     lost: dict[str, float] = {}
     unmeasured: list[str] = []
     gone = {t.node[5:] for t in action.targets if t.node.startswith("file:") and t.effect in _LOSES}
@@ -141,8 +143,21 @@ def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: st
 
 
 def _uncommitted(repo: Repo, cfg: Config, paths: list[str] | None, untracked: bool = False) -> float:
-    """Uncommitted work, in the same compressed bytes as W."""
-    return uncommitted_hours(repo, cfg, paths, untracked) * cfg.bytes_per_hour
+    """Work Git cannot bring back, uncommitted edits or untracked files, in the same compressed bytes as W."""
+    if untracked:
+        total = 0
+        for name in (decode_path(p) for p in repo.run("ls-files", "--others", "--exclude-standard", "-z").split(b"\0") if p):
+            try:
+                total += info_bytes((repo.path / name).read_bytes()[: cfg.max_file_bytes], b"", cfg.zstd_level)
+            except OSError:
+                continue
+        return float(total)
+    try:
+        diff = repo.run("diff", "HEAD", "-w", "-U0", "--no-color", "--", *(paths or []))
+    except GitError:
+        return 0.0
+    added = b"".join(line[1:] + b"\n" for line in diff.split(b"\n") if line.startswith(b"+") and not line.startswith(b"+++"))
+    return float(info_bytes(added, b"", cfg.zstd_level)) if added else 0.0
 
 
 def bug_for(root: str) -> list[str]:
@@ -155,18 +170,36 @@ def bug_for(root: str) -> list[str]:
     return []
 
 
+def repo_root(cwd: str) -> str | None:
+    try:
+        return Repo(cwd).run("rev-parse", "--show-toplevel").decode().strip()
+    except (GitError, FileNotFoundError, NotADirectoryError):
+        return None
+
+
+def load_config(root: str) -> Config:
+    """`.vscore/config.toml`, or the file VSCORE_CONFIG names."""
+    path = Path(os.environ.get("VSCORE_CONFIG") or Path(root) / ".vscore" / "config.toml")
+    return Config.load(path if path.exists() else None)
+
+
+def settings_snippet() -> str:
+    """The `.claude/settings.json` entry that runs the hook before every Bash, Write and Edit call."""
+    snippet = {"hooks": {"PreToolUse": [{"matcher": MATCHER, "hooks": [{"type": "command",
+                                                                        "command": "vscore hook claude-code"}]}]}}
+    return json.dumps(snippet, indent=2) + "\n"
+
+
 def hook(payload: dict) -> dict | None:
     """Claude Code PreToolUse hook: silent when the action is proportionate to the bug, a deny with both
     numbers when it is not. It never grants permission."""
-    from vscore.hooks import load_config, repo_root
-
     cwd = payload.get("cwd") or os.getcwd()
     root = repo_root(cwd)
     tool_name, tool_input = payload.get("tool_name", ""), payload.get("tool_input") or {}
     if root is None or malformed(tool_name, tool_input):
         return None
     result = compare(root, bug_for(root), tool_name, tool_input, cwd, load_config(root))
-    AuditLog(gate_log_path(Repo(root))).append({"at": datetime.now(UTC).isoformat(timespec="seconds"),
+    AuditLog(Repo(root).git_dir / "vscore-cache" / "compare.jsonl").append({"at": datetime.now(UTC).isoformat(timespec="seconds"),
                                                 "policy": "compare", "session": payload.get("session_id"),
                                                 "tool": tool_name, **result.to_dict()})
     if result.allowed:

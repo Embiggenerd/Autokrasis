@@ -1,10 +1,10 @@
-"""What a proposed agent action would destroy (plan: The gate and enforcement, Pricing an action).
+"""What a proposed agent action would destroy, for vscore compare.
 
 A tool call becomes an Action: a list of Targets, each a node plus the effect the action has on it.
 Shell commands are split into simple commands and read with a small model of the commands that
 destroy things: rm, git, database clients, migration resets, redirections. SQL is classified
-statement by statement. Commands the model does not know are left alone unless they mention a priced
-path or database, in which case they are `unresolved` and priced at band 3.
+statement by statement. Commands the model does not know are left alone unless they mention a tracked
+file or a database, in which case they are `unresolved`.
 """
 
 from __future__ import annotations
@@ -24,9 +24,6 @@ DESTRUCTIVE = ("drop", "db_reset", "truncate", "bulk_delete", "bulk_update", "dr
                "discard_uncommitted", "delete", "rewrite", "overwrite", "unresolved", "partial_delete")
 HARMLESS = ("move", "rename_table")
 UNSUPPORTED = "unsupported"  # an action vscore cannot read, which names a priced file or database
-SELF_APPROVAL = "self_approval"  # the agent granting an approval, or writing vscore's own state
-_STATE_WRITERS = {"rm", "mv", "cp", "tee", "touch", "ln", "truncate", "install", "rsync", "unlink", "shred", "sed"}
-TOOLS = ("Bash", "Write", "Edit", "MultiEdit", "NotebookEdit")
 _SQLITE_HEADER = b"SQLite format 3\x00"
 
 _SEPARATORS = {";", "&&", "||", "|", "&", "\n"}
@@ -224,7 +221,7 @@ def _redirections(args: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
 
 
 def _sniff(absolute: str, ctx: Context) -> None:
-    """Registers an untracked SQLite file as a database, so it counts even when no prices name it."""
+    """Registers an untracked SQLite file as a database, so losing it counts."""
     if absolute in ctx.databases or ctx.rel(absolute) in ctx.tracked:
         return
     try:
@@ -479,19 +476,13 @@ def parse_shell(command: str, ctx: Context) -> tuple[list[Target], list[str]]:
         upstream = pipeline if piped else []
         pipeline = upstream + [args]
         for op, path in redirects:
-            if op in (">", ">|", ">>") and _vscore_state(path, ctx):
-                targets.append(_self_approval(f"writes {path}"))
-            elif op in (">", ">|") and path != "/dev/null":
+            if op in (">", ">|") and path != "/dev/null":
                 targets += _redirect_targets(path, args, redirects, command, ctx)
         if not args:
             continue
         name = os.path.basename(args[0])
         flags = {a for a in args[1:] if a.startswith("-")}
         operands = [a for a in args[1:] if not a.startswith("-")]
-        if (name == "vscore" and operands[:1] == ["approve"]) or (
-                name in _STATE_WRITERS and any(_vscore_state(a, ctx) for a in operands)):
-            targets.append(_self_approval(" ".join(args)))
-            continue
         if name in ("bash", "sh", "zsh") and "-c" in args and args.index("-c") + 1 < len(args):
             inner_targets, inner_notes = parse_shell(args[args.index("-c") + 1], ctx)
             targets += inner_targets
@@ -545,8 +536,8 @@ def parse_shell(command: str, ctx: Context) -> tuple[list[Target], list[str]]:
         elif name == "sed" and any(f.startswith("-i") for f in flags):
             continue  # in-place edits are ordinary changes
         elif name in _INTERPRETERS:
-            # A script: what it does cannot be read from the command line. When it names a priced file or
-            # database, the failure table decides (unsupported_action).
+            # A script: what it does cannot be read from the command line. When it names a tracked file
+            # or a database, vscore compare treats it as unmeasured and stops it.
             if _mentions_priced(_script_arguments(args), ctx):
                 notes.append(f"{name} runs a script on priced files or databases; what it does is unknown")
                 targets.append(Target("action:?", UNSUPPORTED, " ".join(args)[:200]))
@@ -590,17 +581,6 @@ def _symbol_targets(rel: str | None, old_text: str, new_text: str) -> list[Targe
             for s in removed_symbols(old_text, new_text)]
 
 
-def _vscore_state(path: str, ctx: Context) -> bool:
-    """Whether a path lies in vscore's own state (prices, approvals, logs) under .git/vscore-cache."""
-    state = os.path.realpath(os.path.join(ctx.repo_root, ".git", "vscore-cache"))
-    absolute = ctx.absolute(path)
-    return absolute == state or absolute.startswith(state + os.sep)
-
-
-def _self_approval(detail: str) -> Target:
-    return Target("vscore:approvals", SELF_APPROVAL, detail[:200])
-
-
 def malformed(tool_name: object, tool_input: object) -> str | None:
     """Why a tool call cannot be read as one of the tools vscore knows, or None if it can."""
     if not isinstance(tool_name, str) or not tool_name:
@@ -619,11 +599,6 @@ def malformed(tool_name: object, tool_input: object) -> str | None:
     return None
 
 
-def destructive_looking(action: Action) -> bool:
-    """What the failure table denies when prices are not ready: any target that loses or may lose data."""
-    return any(t.effect in DESTRUCTIVE or t.effect in (UNSUPPORTED, SELF_APPROVAL) for t in action.targets)
-
-
 def from_tool_call(tool_name: str, tool_input: dict, ctx: Context) -> Action:
     """Reads a Claude Code tool call (the PreToolUse hook payload) as an Action."""
     if tool_name == "Bash":
@@ -632,8 +607,6 @@ def from_tool_call(tool_name: str, tool_input: dict, ctx: Context) -> Action:
         return Action(tool_name, command[:200], tuple(targets), tuple(notes))
     if tool_name in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
         path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
-        if _vscore_state(path, ctx):
-            return Action(tool_name, f"{tool_name} {path}", (_self_approval(f"{tool_name} {path}"),))
         rel = ctx.rel(path)
         try:
             old_text = open(ctx.absolute(path), encoding="utf-8", errors="replace").read()

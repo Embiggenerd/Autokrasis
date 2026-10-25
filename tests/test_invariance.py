@@ -1,4 +1,4 @@
-"""The invariance table from docs/plan.md ("Next milestone: reliable scorer release"), one test per row.
+"""Invariance tests for W (docs/plan.md, Scoring spec: Invariance), one test per rule.
 
 Each test builds two histories that differ only by the transformation and compares W. Attribution
 expectations (which commit is credited with which lines, survival fractions, nulls) are written by
