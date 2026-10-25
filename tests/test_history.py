@@ -119,7 +119,7 @@ def test_root_commit_is_compared_with_the_empty_tree(make_repo):
     assert found[root].info > 0
 
 
-def test_merge_commits_are_skipped(make_repo):
+def test_merges_are_credited_only_with_lines_new_to_every_parent(make_repo):
     repo = make_repo()
     repo.write("data.txt", "header = 1\nshared = 'base'\n")
     repo.commit("base")
@@ -133,8 +133,9 @@ def test_merge_commits_are_skipped(make_repo):
         "data.txt": "header = 1\nshared = 'resolved by hand'\nfeature_only = True\n",
     })
     found, _ = contributions(repo, "data.txt")
-    assert merge not in found
-    assert feature in found
+    assert [line for line, _ in found[merge].lines] == [2]  # the hand-resolved line only
+    assert found[merge].added_lines == 1
+    assert [line for line, _ in found[feature].lines] == [3]  # feature_only keeps its branch commit
 
 
 def test_blame_ignore_revs_file_in_the_tree_is_honored(make_repo):
@@ -168,3 +169,58 @@ def test_shallow_clone_nulls_w_unless_allowed(make_repo, tmp_path):
     assert allowed["W"] > 0
     assert allowed["V"] is not None
     assert allowed["confidence"] == "partial"
+
+
+def _branchy_history(repo):
+    repo.write("a.py", LINES)
+    repo.write("b.py", LINES.replace("value", "other"))
+    repo.commit("one")
+    repo.checkout("feature", create=True)
+    repo.write("a.py", LINES + "feature_line = 1\n")
+    repo.commit("feature")
+    repo.checkout("main")
+    repo.write("b.py", LINES.replace("value", "other") + "main_line = 2\n")
+    repo.commit("main change")
+    repo.merge("feature", "merge feature")
+    repo.write("c.py", "late = 3\n")
+    repo.commit("late file")
+
+
+def test_blame_at_the_last_change_equals_blame_at_the_revision(make_repo):
+    from vscore.adapters.history import BLAME_BASE, History, parse_blame_origins
+    from vscore.gitrepo import BlobReader, Repo
+
+    repo = make_repo()
+    _branchy_history(repo)
+    git = Repo(repo.path)
+    head = git.resolve("HEAD")
+    with BlobReader(git) as blobs:
+        history = History(git, head, blobs, 9, None, copy_detection=2)
+        history.blame_revs = history.last_changes(["a.py", "b.py", "c.py"])
+        assert history.blame_revs["c.py"] == head and history.blame_revs["a.py"] != head  # a.py: the merge
+        for path in ("a.py", "b.py", "c.py"):
+            direct = parse_blame_origins(git.run(*BLAME_BASE, "-C", "-C", head, "--", path))
+            assert history.blame(path) == direct
+
+
+def test_a_new_commit_reblames_only_the_files_it_changed(make_repo, monkeypatch):
+    from vscore.gitrepo import Repo
+
+    repo = make_repo()
+    _branchy_history(repo)
+    before = scan(repo.path)
+    repo.write("c.py", "late = 4\n")
+    repo.commit("edit c")
+    blamed = []
+    run = Repo.run
+
+    def spy(self, *args, **kwargs):
+        if args[0] == "blame":
+            blamed.append(args[-1])
+        return run(self, *args, **kwargs)
+
+    monkeypatch.setattr(Repo, "run", spy)
+    after = scan(repo.path)
+    assert blamed == ["c.py"]
+    assert {f["path"]: f["W"] for f in after.data["files"] if f["path"] != "c.py"} == \
+        {f["path"]: f["W"] for f in before.data["files"] if f["path"] != "c.py"}

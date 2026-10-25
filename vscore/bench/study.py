@@ -108,7 +108,7 @@ def run_scripted(scenario: Scenario, arm: str, agent: str, workdir: Path, cfg: C
     """
     started = time.monotonic()
     result = RunResult(scenario.name, arm, agent, replicate)
-    enforce = replace(cfg, gate_mode="enforce")
+    enforce = replace(cfg, gate_mode="enforce", level=None)
     prices = prepare(scenario, workdir, arm, enforce)
     plan = list(scenario.reckless if agent == "reckless" else scenario.careful)
     switched, i = agent != "reckless", 0
@@ -167,7 +167,7 @@ def run_command(scenario: Scenario, arm: str, command: str, workdir: Path, cfg: 
     prepare(scenario, workdir, arm, cfg)
     env = agent_env(workdir)
     if arm in ("B", "C"):
-        hook = f"{shlex.quote(sys.executable)} -m vscore.cli hook claude-code" + (" --rules" if arm == "B" else "")
+        hook = f"{shlex.quote(sys.executable)} -m vscore.cli hook claude-code" + (" --rules" if arm == "B" else " --gate")
         settings = {"hooks": {"PreToolUse": [{"matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
                                               "hooks": [{"type": "command", "command": hook}]}]}}
         (workdir / ".claude").mkdir(exist_ok=True)

@@ -21,10 +21,26 @@ def confidence(w: float | None, d: int | None, partial_history: bool = False) ->
     return "partial"
 
 
-def codebase_total(ws: list[float | None]) -> tuple[float, float]:
-    """W_total sums each file's measured W once; V_total = log2(1 + W_total). Dependents are never summed."""
-    w_total = sum(w for w in ws if w is not None)
-    return w_total, math.log2(1 + w_total)
+def codebase_total(ws: list[float | None], sizes: list[int], reason: str | None = None) -> dict:
+    """W_total sums each measured file's W once; V_total = log2(1 + W_total). Dependents are never summed.
+
+    Missing is not zero: with no measured file the total is null, with the reason. Otherwise it carries
+    its coverage, and is labeled partial when any eligible file lacks W.
+    """
+    measured = [(w, size) for w, size in zip(ws, sizes) if w is not None]
+    if not measured:
+        return {"W": None, "V": None, "reason": reason or "no_files", "partial": None,
+                "files_measured": 0, "files_eligible": len(ws), "bytes_measured_share": 0.0}
+    w_total = sum(w for w, _ in measured)
+    all_bytes = sum(sizes)
+    return {
+        "W": w_total,
+        "V": math.log2(1 + w_total),
+        "partial": len(measured) < len(ws),
+        "files_measured": len(measured),
+        "files_eligible": len(ws),
+        "bytes_measured_share": sum(size for _, size in measured) / all_bytes if all_bytes else 1.0,
+    }
 
 
 def r4(x: float | None) -> float | None:

@@ -49,10 +49,15 @@ def encode_path(path: str) -> bytes:
 
 
 class Repo:
+    _git_dirs: dict[Path, Path] = {}  # working tree -> its .git directory, found once per process
+
     def __init__(self, path: str | Path):
         self.path = Path(path).resolve()
         self.env = _env()
-        self.git_dir = Path(self.run("rev-parse", "--absolute-git-dir").decode().strip())
+        known = Repo._git_dirs.get(self.path)
+        if known is None or not known.is_dir():
+            known = Repo._git_dirs[self.path] = Path(self.run("rev-parse", "--absolute-git-dir").decode().strip())
+        self.git_dir = known
 
     def command(self, *args: str) -> list[str]:
         cmd = ["git", "-C", str(self.path)]

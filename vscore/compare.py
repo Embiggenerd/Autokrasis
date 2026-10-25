@@ -1,0 +1,175 @@
+"""vscore compare: the W of the code a bug is about against the W an action would destroy.
+
+A person fixing a bug in one file would never delete the codebase to do it. This check gives an agent the
+same sense of proportion. W is surviving compressed work in bytes (docs/plan.md, Scoring spec):
+
+- The bug's W is the sum over the files and symbols it names; a directory counts every file under it.
+- The action's W is what it would delete or replace: files deleted, overwritten or mostly rewritten (with
+  their uncommitted work), top-level functions and classes removed, uncommitted work discarded.
+
+The action runs when it destroys at most `compare_limit` times the bug's W (floored at `compare_floor_w`,
+so a bug in a tiny or new file still allows small changes). Losses W cannot weigh against code, such as
+dropping or emptying a database table, rewriting Git history, or removing files a pipe names, stop it.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+import json
+import os
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+
+from vscore import FORMULA_VERSION
+from vscore.actions import from_tool_call, malformed
+from vscore.audit import AuditLog
+from vscore.config import Config
+from vscore.gate import build_context, gate_log_path, uncommitted_hours
+from vscore.gitrepo import Repo
+from vscore.scan import scan
+
+_LOSES = {"delete", "overwrite", "rewrite", "unresolved"}
+_TABLE_LOSS = {"drop", "db_reset", "truncate", "bulk_delete", "bulk_update", "drop_column"}
+_UNCOMMITTED = {"git:worktree", "git:untracked", "git:stash"}
+
+
+@dataclass
+class Comparison:
+    bug: list[str]
+    bug_w: float
+    destroyed: float
+    codebase: float
+    limit: float
+    floor: float
+    summary: str
+    files: list[tuple[str, float]] = field(default_factory=list)  # what the action destroys, largest first
+    unmeasured: list[str] = field(default_factory=list)  # losses W cannot weigh
+
+    @property
+    def ratio(self) -> float:
+        return self.destroyed / max(self.bug_w, self.floor)
+
+    @property
+    def allowed(self) -> bool:
+        return not self.unmeasured and self.ratio <= self.limit
+
+    def message(self) -> str:
+        bug = f"the bug ({', '.join(self.bug)}) is worth W {self.bug_w:,.0f}" if self.bug else (
+            f"no bug is named, so W {self.floor:,.0f} is the allowance")
+        lost = f"this destroys W {self.destroyed:,.0f}"
+        if self.files:
+            lost += " (" + ", ".join(f"{p} {w:,.0f}" for p, w in self.files[:3]) + (", ..." if len(self.files) > 3 else "") + ")"
+        text = f"vscore: {bug}; {lost}, {self.ratio:.1f}x the bug, of a codebase worth W {self.codebase:,.0f}."
+        if self.unmeasured:
+            return text + f" It also {'; '.join(self.unmeasured)}, which W cannot weigh against code: stop."
+        if not self.allowed:
+            return text + f" That is more than {self.limit:g}x what the bug is worth: stop and make a narrower fix."
+        return text
+
+    def to_dict(self) -> dict:
+        return {"bug": self.bug, "bug_w": round(self.bug_w, 1), "destroyed": round(self.destroyed, 1),
+                "codebase": round(self.codebase, 1), "ratio": round(self.ratio, 2), "limit": self.limit,
+                "allowed": self.allowed, "summary": self.summary, "files": [[p, round(w, 1)] for p, w in self.files],
+                "unmeasured": self.unmeasured}
+
+
+def scores(repo_root: str, cfg: Config) -> dict:
+    """W of every file and symbol at HEAD, from the scan, kept per revision so later checks are instant."""
+    repo = Repo(repo_root)
+    revision = repo.resolve("HEAD")
+    cached = repo.git_dir / "vscore-cache" / "scores" / f"{revision}-{FORMULA_VERSION.rsplit('/', 1)[-1]}-{cfg.digest()}.json"
+    if cached.exists():
+        return json.loads(cached.read_text())
+    data = scan(repo_root, "HEAD", cfg).data
+    found = {"files": {f["path"]: f["W"] or 0.0 for f in data["files"]},
+             "symbols": {f"{s['path']}::{s['name']}": s["W"] or 0.0 for s in data["symbols"]},
+             "total": data["total"]["W"] or 0.0}
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_text(json.dumps(found))
+    return found
+
+
+def _bug_w(bug: list[str], known: dict) -> float:
+    """W of what the bug names: paths, globs and directories, or symbols as path::name."""
+    total, counted = 0.0, set()
+    for name in bug:
+        name = name.removeprefix("file:").removeprefix("sym:")
+        if "::" in name:
+            if name not in counted:
+                counted.add(name)
+                total += known["symbols"].get(name, 0.0)
+            continue
+        prefix = name.rstrip("/") + "/"
+        for path, w in known["files"].items():
+            if path not in counted and (path == name or path.startswith(prefix) or fnmatch.fnmatchcase(path, name)):
+                counted.add(path)
+                total += w
+    return total
+
+
+def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: str | None = None,
+            cfg: Config | None = None) -> Comparison:
+    cfg = cfg or Config()
+    root = str(Repo(repo_root).path)
+    known = scores(root, cfg)
+    ctx = build_context(root, cwd or root, None)
+    action = from_tool_call(tool_name, tool_input, ctx)
+    repo = Repo(root)
+    lost: dict[str, float] = {}
+    unmeasured: list[str] = []
+    gone = {t.node[5:] for t in action.targets if t.node.startswith("file:") and t.effect in _LOSES}
+    for target in action.targets:
+        node = target.node
+        if node.startswith("file:") and node != "file:?" and target.effect in _LOSES:
+            path = node[5:]
+            lost[path] = known["files"].get(path, 0.0) + _uncommitted(repo, cfg, [path])
+        elif node.startswith("sym:") and target.effect == "delete" and node[4:].split("::")[0] not in gone:
+            lost[node[4:]] = known["symbols"].get(node[4:], 0.0)
+        elif node in _UNCOMMITTED:
+            paths = target.detail.split() if node == "git:worktree" and not target.detail.startswith("git") else None
+            lost[f"uncommitted work ({node[4:]})"] = _uncommitted(repo, cfg, paths, untracked=node == "git:untracked")
+        elif node.startswith("table:") and target.effect in _TABLE_LOSS:
+            unmeasured.append(f"would {target.effect.replace('_', ' ')} {node[6:]}")
+        elif node == "git:history":
+            unmeasured.append("rewrites Git history")
+        elif node in ("file:?", "action:?") or target.effect == "unsupported":
+            unmeasured.append(f"runs something vscore cannot read ({target.detail[:60]})")
+    files = sorted(((p, w) for p, w in lost.items() if w > 0), key=lambda pw: -pw[1])
+    return Comparison(list(bug), _bug_w(bug, known), sum(lost.values()), known["total"], cfg.compare_limit,
+                      cfg.compare_floor_w, action.summary, files, list(dict.fromkeys(unmeasured)))
+
+
+def _uncommitted(repo: Repo, cfg: Config, paths: list[str] | None, untracked: bool = False) -> float:
+    """Uncommitted work, in the same compressed bytes as W."""
+    return uncommitted_hours(repo, cfg, paths, untracked) * cfg.bytes_per_hour
+
+
+def bug_for(root: str) -> list[str]:
+    """The bug's files: VSCORE_BUG (comma-separated), or the `nodes` of .vscore/report.json."""
+    if names := os.environ.get("VSCORE_BUG"):
+        return [n.strip() for n in names.split(",") if n.strip()]
+    report = Path(os.environ.get("VSCORE_REPORT") or Path(root) / ".vscore" / "report.json")
+    if report.exists():
+        return [n for n in json.loads(report.read_text()).get("nodes", []) if not n.startswith("table:")]
+    return []
+
+
+def hook(payload: dict) -> dict | None:
+    """Claude Code PreToolUse hook: silent when the action is proportionate to the bug, a deny with both
+    numbers when it is not. It never grants permission."""
+    from vscore.hooks import load_config, repo_root
+
+    cwd = payload.get("cwd") or os.getcwd()
+    root = repo_root(cwd)
+    tool_name, tool_input = payload.get("tool_name", ""), payload.get("tool_input") or {}
+    if root is None or malformed(tool_name, tool_input):
+        return None
+    result = compare(root, bug_for(root), tool_name, tool_input, cwd, load_config(root))
+    AuditLog(gate_log_path(Repo(root))).append({"at": datetime.now(UTC).isoformat(timespec="seconds"),
+                                                "policy": "compare", "session": payload.get("session_id"),
+                                                "tool": tool_name, **result.to_dict()})
+    if result.allowed:
+        return None
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                   "permissionDecisionReason": result.message()}}

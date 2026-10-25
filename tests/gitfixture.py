@@ -10,22 +10,25 @@ _EPOCH = 1_704_067_200  # 2024-01-01T00:00:00Z
 
 
 class GitFixture:
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, author: str = "Fixture", epoch: int = _EPOCH):
         self.path = Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
         self._tick = 0
+        self._author = author
+        self._epoch = epoch
         self.git("init", "-q", "-b", "main")
 
     def _env(self) -> dict[str, str]:
-        stamp = f"{_EPOCH + self._tick * 3600} +0000"
+        stamp = f"{self._epoch + self._tick * 3600} +0000"
+        email = f"{self._author.lower()}@example.com"
         env = dict(os.environ)
         env.update(
             GIT_CONFIG_GLOBAL=os.devnull,
             GIT_CONFIG_NOSYSTEM="1",
-            GIT_AUTHOR_NAME="Fixture",
-            GIT_AUTHOR_EMAIL="fixture@example.com",
-            GIT_COMMITTER_NAME="Fixture",
-            GIT_COMMITTER_EMAIL="fixture@example.com",
+            GIT_AUTHOR_NAME=self._author,
+            GIT_AUTHOR_EMAIL=email,
+            GIT_COMMITTER_NAME=self._author,
+            GIT_COMMITTER_EMAIL=email,
             GIT_AUTHOR_DATE=stamp,
             GIT_COMMITTER_DATE=stamp,
         )

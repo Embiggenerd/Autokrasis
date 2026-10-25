@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
 from vscore.config import Config
+from vscore.gitrepo import Repo
 from vscore.scan import scan
 
 
@@ -18,6 +20,14 @@ def _fmt(value, width: int, digits: int = 1) -> str:
     if isinstance(value, float):
         return f"{value:.{digits}f}".rjust(width)
     return str(value).rjust(width)
+
+
+def _total_text(total: dict) -> str:
+    if total["W"] is None:
+        return f"total W and V null ({total['reason']}): nothing measured"
+    partial = (f", partial: {total['files_measured']} of {total['files_eligible']} files measured"
+               if total["partial"] else "")
+    return f"total W {total['W']:.0f}, V {total['V']:.2f}{partial}"
 
 
 def _sort_key(field: str):
@@ -36,7 +46,7 @@ def cmd_scan(args) -> int:
     cov = data["scan"]["coverage"]
     print(
         f"scanned {cov['eligible']} eligible files ({cov['excluded']} excluded) at {data['scan']['revision'][:12]} "
-        f"in {time.monotonic() - start:.1f}s; total W {data['total']['W']:.0f}, V {data['total']['V']:.2f}",
+        f"in {time.monotonic() - start:.1f}s; {_total_text(data['total'])}",
         file=sys.stderr,
     )
     return 0
@@ -50,7 +60,7 @@ def cmd_show(args) -> int:
         print(f"{_fmt(f['V'], 7, 2)} {_fmt(f['W'], 10, 0)} {_fmt(f['D'], 5)} {_fmt(f['commits'], 7)}  "
               f"{f['class']:<11} {f['confidence']:<7} {f['path']}")
     total = data["total"]
-    print(f"\ncodebase total: W {total['W']:.0f}, V {total['V']:.2f}")
+    print(f"\ncodebase {_total_text(total)}")
     return 0
 
 
@@ -172,15 +182,13 @@ def cmd_calibrate(args) -> int:
 
 
 def _prices_for(repo: str, cfg: Config, prices_file: str | None = None) -> dict:
-    from vscore.prices.run import load_latest, price_repo, save_latest
+    """The given prices file, or prices for the repository's current commit (saved, or recomputed if stale)."""
+    from vscore.gate import current_prices
+    from vscore.prices.run import load_latest
 
     if prices_file:
         return json.loads(Path(prices_file).read_text())
-    if (latest := load_latest(repo)) is not None:
-        return latest
-    result = price_repo(repo, cfg=cfg)
-    save_latest(repo, result)
-    return result.data
+    return current_prices(repo, load_latest(repo), cfg)[0]
 
 
 def cmd_gate(args) -> int:
@@ -191,10 +199,17 @@ def cmd_gate(args) -> int:
 
     cfg = Config.load(args.config)
     if args.enforce:
-        cfg = replace(cfg, gate_mode="enforce")
-    tool_input = {"command": args.command} if args.tool == "Bash" else {"file_path": args.file, "content": args.content or ""}
-    decision = evaluate(args.tool, tool_input, args.repo, args.cwd or args.repo, _prices_for(args.repo, cfg, args.prices),
-                        cfg, load_report(args.report))
+        cfg = replace(cfg, gate_mode="enforce", level=max(cfg.level or 2, 2))
+    if args.input:
+        tool_input = json.loads(args.input)
+    elif args.tool == "Bash":
+        tool_input = {"command": args.command}
+    else:
+        tool_input = {"file_path": args.file, "content": args.content or ""}
+    from vscore.prices.run import load_latest
+
+    saved = json.loads(Path(args.prices).read_text()) if args.prices else load_latest(args.repo)
+    decision = evaluate(args.tool, tool_input, args.repo, args.cwd or args.repo, saved, cfg, load_report(args.report))
     print(json.dumps(decision.to_dict(), indent=2))
     return {"allow": 0, "allow_after_snapshot": 0, "warn": 0, "approve": 3, "block": 4}[decision.effective]
 
@@ -202,10 +217,16 @@ def cmd_gate(args) -> int:
 def cmd_hook(args) -> int:
     from vscore.hooks import claude_code, settings_snippet
 
+    policy = "rules" if args.rules else "vscore" if args.gate else "compare"
     if args.target == "settings":
-        sys.stdout.write(settings_snippet("rules" if args.rules else "vscore"))
+        sys.stdout.write(settings_snippet(policy))
         return 0
-    answer = claude_code(json.load(sys.stdin), "rules" if args.rules else "vscore")
+    if policy == "compare":
+        from vscore.compare import hook
+
+        answer = hook(json.load(sys.stdin))
+    else:
+        answer = claude_code(json.load(sys.stdin), policy)
     if answer is not None:
         sys.stdout.write(json.dumps(answer))
     return 0
@@ -219,8 +240,7 @@ def cmd_broker(args) -> int:
     broker = Broker(args.repo, cfg)
     try:
         if args.op == "sql":
-            entry = broker.run_sql(args.database, args.sql, _prices_for(args.repo, cfg), load_report(args.report),
-                                   args.approve)
+            entry = broker.run_sql(args.database, args.sql, _prices_for(args.repo, cfg), load_report(args.report))
             print(f"ran after snapshot {entry['snapshot']}: {entry['decision']['verdict']}, "
                   f"{entry['decision']['hours']} h within {entry['decision']['budget_hours']} h budget")
         elif args.op == "verify-restore":
@@ -235,6 +255,54 @@ def cmd_broker(args) -> int:
     except BrokerRefused as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 4
+    return 0
+
+
+def cmd_compare(args) -> int:
+    from vscore.compare import bug_for, compare
+
+    cfg = Config.load(args.config)
+    if args.limit is not None:
+        from dataclasses import replace
+
+        cfg = replace(cfg, compare_limit=args.limit)
+    tool_input = json.loads(args.input) if args.input else {"command": args.command or ""}
+    bug = args.bug if args.bug is not None else bug_for(args.repo)
+    result = compare(args.repo, bug, args.tool, tool_input, args.cwd, cfg)
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(f"bug       W {result.bug_w:>12,.0f}  {', '.join(result.bug) or '(none named)'}")
+        print(f"destroys  W {result.destroyed:>12,.0f}  {result.summary}")
+        for path, w in result.files[:10]:
+            print(f"            {w:>12,.0f}  {path}")
+        for loss in result.unmeasured:
+            print(f"            {'unmeasured':>12}  {loss}")
+        print(f"codebase  W {result.codebase:>12,.0f}")
+        verdict = "RUN" if result.allowed else "STOP"
+        print(f"\n{result.ratio:.1f}x the bug (limit {result.limit:g}x): {verdict}")
+    return 0 if result.allowed else 4
+
+
+def cmd_approve(args) -> int:
+    from vscore.approvals import ApprovalError, Approvals
+
+    try:
+        grant = Approvals(Repo(args.repo)).approve(args.decision_id, args.by or os.environ.get("USER") or "unknown")
+    except ApprovalError as refused:
+        print(f"not approved: {refused}", file=sys.stderr)
+        return 3
+    print(f"approved {grant['decision_id']} ({grant['summary']}) once, until {grant['expires']}, "
+          "as long as nothing it touches changes")
+    return 0
+
+
+def cmd_approvals(args) -> int:
+    from vscore.approvals import Approvals
+
+    for request in Approvals(Repo(args.repo)).pending():
+        print(f"{request['decision_id']}  until {request['expires']}  {request['hours']:.1f} h band {request['band']}"
+              f"  {request['tool']}: {request['summary']}")
     return 0
 
 
@@ -369,7 +437,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("gate", help="decide one proposed action against the prices and a bug report")
     p.add_argument("repo")
-    p.add_argument("--tool", default="Bash", choices=("Bash", "Write"))
+    p.add_argument("--tool", default="Bash", help="the tool's name; vscore reads Bash, Write, Edit, MultiEdit and "
+                   "NotebookEdit, and any other is decided by the failure table (unsupported_action)")
+    p.add_argument("--input", help="the tool call's input as JSON, in Claude Code's format (any tool)")
     p.add_argument("--command", help="shell command, for --tool Bash")
     p.add_argument("--file", help="file path, for --tool Write")
     p.add_argument("--content", help="new file content, for --tool Write")
@@ -380,9 +450,35 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--enforce", action="store_true", help="decide as in enforce mode")
     p.set_defaults(func=cmd_gate)
 
+    p = sub.add_parser("compare", help="compare the W of a bug with the W an action would destroy; exit 4 to stop")
+    p.add_argument("repo")
+    p.add_argument("--bug", action="append", help="a file, directory, glob or path::symbol the bug is about; "
+                   "repeatable (default: VSCORE_BUG, or the nodes of .vscore/report.json)")
+    p.add_argument("--command", help="the shell command the agent wants to run")
+    p.add_argument("--tool", default="Bash", help="the tool, for --input (Bash, Write, Edit, MultiEdit)")
+    p.add_argument("--input", help="the tool call's input as JSON, in Claude Code's format")
+    p.add_argument("--cwd")
+    p.add_argument("--limit", type=float, help="how many times the bug's W an action may destroy (default 2)")
+    p.add_argument("--config")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_compare)
+
+    p = sub.add_parser("approve", help="approve one ask by its decision id, for one execution: for a person, "
+                       "not the agent")
+    p.add_argument("repo")
+    p.add_argument("decision_id")
+    p.add_argument("--by", help="who approves (default: $USER)")
+    p.set_defaults(func=cmd_approve)
+
+    p = sub.add_parser("approvals", help="list the asks waiting for a person's approval")
+    p.add_argument("repo")
+    p.set_defaults(func=cmd_approvals)
+
     p = sub.add_parser("hook", help="agent hooks: `hook claude-code` reads a PreToolUse payload on stdin")
     p.add_argument("target", choices=("claude-code", "settings"))
     p.add_argument("--rules", action="store_true", help="use the rules baseline instead of prices")
+    p.add_argument("--gate", action="store_true", help="use the priced gate (hours, budgets, failure table) "
+                   "instead of the default W comparison")
     p.set_defaults(func=cmd_hook)
 
     p = sub.add_parser("broker", help="run destructive SQL after a verified snapshot, or test restores")
@@ -391,7 +487,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("sql", nargs="?", help="SQL to run (for restore: the snapshot path)")
     p.add_argument("--repo", default=".")
     p.add_argument("--report", help="bug report JSON that backs the change")
-    p.add_argument("--approve", action="store_true", help="a human approved this irreversible change")
     p.add_argument("--config")
     p.set_defaults(func=cmd_broker)
 

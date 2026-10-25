@@ -1,0 +1,133 @@
+{
+  "excluded": [],
+  "files": [
+    {
+      "D": null,
+      "V": null,
+      "W": 28.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "partial",
+      "path": ".gitignore",
+      "reasons": {
+        "D": "unsupported_language"
+      }
+    },
+    {
+      "D": 0,
+      "V": 0.0,
+      "W": 0,
+      "class": "code",
+      "commits": 0,
+      "confidence": "full",
+      "path": "app/__init__.py",
+      "reasons": {}
+    },
+    {
+      "D": 1,
+      "V": 8.858,
+      "W": 115.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "app/customers.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.1085,
+      "W": 68.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "app/main.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.4094,
+      "W": 84.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "app/old_export.py",
+      "reasons": {}
+    }
+  ],
+  "scan": {
+    "allow_shallow": false,
+    "config_hash": "dbf419604b6ee869",
+    "coverage": {
+      "D_null": 1,
+      "V_null": 1,
+      "W_null": 0,
+      "code_files": 4,
+      "dynamic_imports": 0,
+      "eligible": 5,
+      "excluded": 0,
+      "imports": 3,
+      "imports_resolved": 1,
+      "imports_type_only": 0,
+      "imports_unresolved": 2,
+      "imports_via_reexport": 0,
+      "parse_errors": 0,
+      "tracked": 5
+    },
+    "formula": "vscore-formula/4",
+    "git": "2.52.0",
+    "python": "3.14.7",
+    "revision": "b27e4637c6d3f018b80c87427e6fea9a3de4840f",
+    "scorer": "0.1.0",
+    "shallow": false,
+    "zstd": {
+      "level": 9,
+      "library": "1.5.7",
+      "mode": "raw-content-prefix"
+    }
+  },
+  "symbols": [
+    {
+      "D": 0,
+      "V": 5.5546,
+      "W": 46.0,
+      "kind": "function",
+      "lines": [
+        4,
+        5
+      ],
+      "name": "count",
+      "node": "sym:app/customers.py::count",
+      "path": "app/customers.py"
+    },
+    {
+      "D": 0,
+      "V": 4.8176,
+      "W": 27.2,
+      "kind": "function",
+      "lines": [
+        4,
+        5
+      ],
+      "name": "run",
+      "node": "sym:app/main.py::run",
+      "path": "app/main.py"
+    },
+    {
+      "D": 0,
+      "V": 5.4263,
+      "W": 42.0,
+      "kind": "function",
+      "lines": [
+        4,
+        6
+      ],
+      "name": "export",
+      "node": "sym:app/old_export.py::export",
+      "path": "app/old_export.py"
+    }
+  ],
+  "total": {
+    "V": 8.2095,
+    "W": 295.0
+  }
+}

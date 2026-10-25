@@ -9,21 +9,25 @@ standard library; PostgreSQL uses `pg_dump` and `psql` when they are installed.
 
 from __future__ import annotations
 
+import hashlib
+import os
 import secrets
+import shlex
 import shutil
 import sqlite3
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
 from vscore.actions import Action, classify_sql
 from vscore.adapters.schema import read_tables, sqlite_path
+from vscore.approvals import Approvals, expiry, state_hash
 from vscore.audit import AuditLog
 from vscore.budget import budget
 from vscore.config import Config
-from vscore.events import Event, EventStore
+from vscore.events import Event, EventStore, canonical
 from vscore.gate import build_context, decide, price_action
 from vscore.gitrepo import Repo
 
@@ -54,6 +58,7 @@ class Broker:
         self.snapshots = self.repo.git_dir / "vscore-cache" / "snapshots"
         self.snapshots.mkdir(parents=True, exist_ok=True)
         self.log = AuditLog(self.repo.git_dir / "vscore-cache" / "broker.jsonl")
+        self.approvals = Approvals(self.repo)
 
     def _db_path(self, url: str) -> Path:
         path = sqlite_path(url)
@@ -114,22 +119,38 @@ class Broker:
                          "tables": snap.rows})
         return snap
 
-    def run_sql(self, url: str, sql: str, prices: dict | None, report: dict | None = None,
-                approved: bool = False) -> dict:
-        """Prices the statement as restorable from a fresh snapshot, asks the gate, and runs it if allowed."""
+    def run_sql(self, url: str, sql: str, prices: dict | None, report: dict | None = None) -> dict:
+        """Prices the statement as restorable from a fresh snapshot, asks the gate, and runs it if allowed.
+        An irreversible change runs only on a person's approval of this statement and the database's
+        current state (vscore/approvals.py), once."""
         ctx = build_context(str(self.repo.path), str(self.repo.path), prices)
         database = Path(url).stem if sqlite_path(url) else url.rstrip("/").rsplit("/", 1)[-1]
+        if sqlite_path(url) is not None:
+            ctx.databases.setdefault(os.path.realpath(self._db_path(url)), database)
         action = Action("broker", sql[:200], tuple(classify_sql(sql, ctx, database)))
+        state = state_hash(action, ctx, self.repo)  # before the snapshot: what a person would be approving
         snap = self.snapshot(url) if action.targets else None
         price = price_action(action, prices, ctx, self.cfg, snapshot=snap is not None)
         decision = decide(action, price, budget(report, self.cfg), "enforce")
+        digest = hashlib.sha256(canonical({"tool": "broker", "database": url, "sql": sql}).encode()).hexdigest()
+        decision = replace(decision, action_hash=digest, state_hash=state,
+                           expires=expiry(self.cfg.approval_ttl_s) if decision.verdict == "approve" else None)
+        grant = None
+        if decision.verdict == "approve":
+            grant, problem = self.approvals.redeem(digest, state)
+            if grant is not None:
+                decision = replace(decision, approval={"decision_id": grant["decision_id"], "by": grant["by"]})
         entry = {"at": _now(), "op": "sql", "database": url, "sql": sql, "decision": decision.to_dict(),
-                 "snapshot": str(snap.path) if snap else None, "approved": approved}
-        if decision.verdict == "block" or (decision.verdict == "approve" and not approved):
+                 "snapshot": str(snap.path) if snap else None}
+        if decision.verdict == "block" or (decision.verdict == "approve" and grant is None):
             entry["result"] = "refused"
             self.log.append(entry)
-            raise BrokerRefused(decision.message() + (" Re-run with --approve after review."
-                                                      if decision.verdict == "approve" else ""))
+            hint = ""
+            if decision.verdict == "approve":
+                self.approvals.request(decision.to_dict())
+                hint = ((f" ({problem}.)" if problem else "") + " It needs a person's approval, once: vscore approve "
+                        f"{shlex.quote(str(self.repo.path))} {decision.decision_id}")
+            raise BrokerRefused(decision.message() + hint)
         try:
             self._execute(url, sql)
             entry["result"] = "ok"

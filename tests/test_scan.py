@@ -48,7 +48,7 @@ def test_scan_output_follows_the_spec(make_repo):
     total_w = sum(f["W"] for f in data["files"] if f["W"] is not None)
     assert abs(data["total"]["W"] - total_w) < 0.01
     scan_meta = data["scan"]
-    assert scan_meta["formula"] == "vscore-formula/4"
+    assert scan_meta["formula"] == "vscore-formula/5"
     assert scan_meta["zstd"]["level"] == 9
     assert scan_meta["coverage"]["parse_errors"] == 1
 

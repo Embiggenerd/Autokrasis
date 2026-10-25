@@ -23,6 +23,6 @@ def test_confidence_levels():
 
 
 def test_codebase_total_counts_each_measured_file_once():
-    w_total, v_total = codebase_total([3.0, None, 4.0])
-    assert w_total == 7.0
-    assert v_total == math.log2(8)
+    total = codebase_total([3.0, None, 4.0], [10, 10, 10])
+    assert total["W"] == 7.0
+    assert total["V"] == math.log2(8)

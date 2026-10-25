@@ -29,6 +29,25 @@ class ScanResult:
         return json.dumps(self.data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
 
 
+def symbol_work(symbols: list, parts: list[Contribution] | None) -> list[float | None]:
+    """Each symbol's W: every commit's work shared out by where its surviving lines fall. A line inside
+    several symbols (such as `a = b = 1`) is split equally among them; lines in no symbol go to none."""
+    if parts is None:
+        return [None] * len(symbols)
+    owners: dict[int, list[int]] = {}
+    for index, sym in enumerate(symbols):
+        for line in range(sym.start, sym.end + 1):
+            owners.setdefault(line, []).append(index)
+    work = [0.0] * len(symbols)
+    for c in parts:
+        if not c.added_lines:
+            continue
+        for line, weight in c.lines:
+            for index in owners.get(line, ()):
+                work[index] += c.info * weight / c.added_lines / len(owners[line])
+    return work
+
+
 def scan(repo_path, rev: str = "HEAD", cfg: Config | None = None, allow_shallow: bool = False,
          jobs: int | None = None, only: set[str] | None = None) -> ScanResult:
     """Scores every eligible file at `rev`. `only` limits history extraction (and the file list) to those paths."""
@@ -60,28 +79,36 @@ def scan(repo_path, rev: str = "HEAD", cfg: Config | None = None, allow_shallow:
         tests = {p for p in code_sources if classes[p] == filesmod.TEST}
         d_values = dependents(graph, tests)
 
-        targets = [f.path for f in eligible if only is None or f.path in only]
+        # Work is counted once across the whole codebase, so history is always read for every eligible
+        # file; `only` limits the output.
+        all_paths = [f.path for f in eligible]
+        targets = [p for p in all_paths if only is None or p in only]
         history_skipped = shallow and not allow_shallow
         contributions: dict[str, list[Contribution] | None] = {}
+        mechanical: list[str] = []
         if not history_skipped:
             ignore_entry = by_path.get(cfg.blame_ignore_revs_file)
             ignore_revs = blobs.read(ignore_entry.sha) if ignore_entry else None
-            history = History(repo, revision, blobs, cfg.zstd_level, ignore_revs, jobs)
-            contributions = history.contributions(targets)
+            history = History(repo, revision, blobs, cfg.zstd_level, ignore_revs, jobs, cfg.copy_detection,
+                              cfg.mechanical_min_bytes, cfg.mechanical_words)
+            contributions = history.contributions(all_paths)
+            mechanical = history.mechanical
+
+    w_values: dict[str, float | None] = {}
+    w_reasons: dict[str, str] = {}
+    for path in all_paths:
+        if history_skipped:
+            w_values[path], w_reasons[path] = None, "shallow_clone"
+        elif contributions[path] is None:
+            w_values[path], w_reasons[path] = None, "no_history"
+        else:
+            w_values[path] = sum(c.work for c in contributions[path])
 
     records = []
-    raw_ws: list[float | None] = []
     for path in targets:
-        reasons = {}
-        if history_skipped:
-            w, commits = None, 0
-            reasons["W"] = "shallow_clone"
-        elif contributions[path] is None:
-            w, commits = None, 0
-            reasons["W"] = "no_history"
-        else:
-            w = sum(c.work for c in contributions[path])
-            commits = sum(1 for c in contributions[path] if c.work > 0)
+        reasons = {"W": w_reasons[path]} if path in w_reasons else {}
+        w = w_values[path]
+        commits = 0 if w is None else sum(1 for c in contributions[path] if c.work > 0)
         if path not in code_sources:
             d = None
             reasons["D"] = "unsupported_language"
@@ -89,7 +116,6 @@ def scan(repo_path, rev: str = "HEAD", cfg: Config | None = None, allow_shallow:
             d = d_values[path]
             if d is None:
                 reasons["D"] = "parse_error"
-        raw_ws.append(w)
         records.append({
             "path": path,
             "class": classes[path],
@@ -104,14 +130,16 @@ def scan(repo_path, rev: str = "HEAD", cfg: Config | None = None, allow_shallow:
     symbols = []
     for path in targets:
         found = python_symbols(code_sources[path]) if path.endswith(".py") and path in code_sources else None
-        for sym in found or []:
-            parts = None if history_skipped else contributions.get(path)
-            w = None if parts is None else sum(c.work_in(sym.start, sym.end) for c in parts)
+        parts = None if history_skipped else contributions.get(path)
+        for sym, w in zip(found or [], symbol_work(found or [], parts)):
             d = graph.name_dependents(path, sym.name, tests)
             symbols.append({"node": f"sym:{path}::{sym.name}", "path": path, "name": sym.name, "kind": sym.kind,
                             "lines": [sym.start, sym.end], "W": r4(w), "D": d, "V": r4(v_points(w, d, cfg.alpha))})
 
-    w_total, v_total = codebase_total(raw_ws)
+    sizes = {f.path: f.size for f in eligible}
+    null_reasons = sorted(set(w_reasons.values()))
+    total = codebase_total([w_values[p] for p in all_paths], [sizes[p] for p in all_paths],
+                           reason=null_reasons[0] if len(null_reasons) == 1 else "mixed" if null_reasons else None)
     coverage = graph.coverage
     data = {
         "scan": {
@@ -136,12 +164,13 @@ def scan(repo_path, rev: str = "HEAD", cfg: Config | None = None, allow_shallow:
                 "imports_via_reexport": coverage.via_reexport,
                 "imports_type_only": coverage.type_only,
                 "dynamic_imports": coverage.dynamic,
+                "mechanical_commits": mechanical,
                 "W_null": sum(r["W"] is None for r in records),
                 "D_null": sum(r["D"] is None for r in records),
                 "V_null": sum(r["V"] is None for r in records),
             },
         },
-        "total": {"W": r4(w_total), "V": r4(v_total)},
+        "total": {k: r4(v) if isinstance(v, float) else v for k, v in total.items()},
         "files": records,
         "symbols": symbols,
         "excluded": [{"path": p, "reason": reason} for p, reason in excluded],

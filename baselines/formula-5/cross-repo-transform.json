@@ -1,0 +1,301 @@
+{
+  "formula": "vscore-formula/5",
+  "transform": [
+    {
+      "name": "flask",
+      "revision": "d086db856be187255b8ec61ef409357393020f32",
+      "cold_scan_seconds": 28.6,
+      "targets": {
+        "file": "src/flask/app.py",
+        "other_file": "src/flask/cli.py",
+        "readded_file": "src/flask/sessions.py",
+        "function": "add_ctx",
+        "function_lines": [
+          97,
+          106
+        ],
+        "importers_added": [
+          "src/flask/sansio/app.py",
+          "src/flask/helpers.py",
+          "src/flask/sansio/scaffold.py"
+        ]
+      },
+      "base": {
+        "total_W": 329720.6057,
+        "file_W": 14421.711,
+        "function_W": 72.4922,
+        "other_file_W": 9605.7024
+      },
+      "rows": [
+        {
+          "row": "Whitespace-only reformat",
+          "rule": "File W and total exact",
+          "measured": "file +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Non-whitespace reformat, listed",
+          "rule": "File W within ±3% (±2% on fixtures)",
+          "measured": "111 lines changed; file +2.19%",
+          "holds": true
+        },
+        {
+          "row": "The same reformat, not listed",
+          "rule": "File W within ±10%",
+          "measured": "111 lines changed; file +2.19%; detected as mechanical: True",
+          "holds": true
+        },
+        {
+          "row": "Rename or move a file",
+          "rule": "File W and total exact",
+          "measured": "file +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Move a function to another file",
+          "rule": "Total W within ±5%; W follows the function",
+          "measured": "total +0.01%; function W +0.00% in its new file",
+          "holds": true
+        },
+        {
+          "row": "Split a file in two",
+          "rule": "W over the two files within ±5% of the original",
+          "measured": "files +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Copy code into a new file",
+          "rule": "Rise at most 5% of the copied code's W",
+          "measured": "rise 0.0% of the function's W",
+          "holds": true
+        },
+        {
+          "row": "Copy code within the same file",
+          "rule": "Rise at most 5% of the copied code's W",
+          "measured": "rise 2.1% of the function's W",
+          "holds": true
+        },
+        {
+          "row": "Copy code into an existing unrelated file",
+          "rule": "Documented limit with -C -C",
+          "measured": "rise 100.7% of the function's W",
+          "holds": null
+        },
+        {
+          "row": "Split one commit into many small ones",
+          "rule": "W at most +10%",
+          "measured": "385 lines in 10-line commits: -1.11%",
+          "holds": true
+        },
+        {
+          "row": "Squash a branch into one commit",
+          "rule": "Total W at most +5%",
+          "measured": "last 20 first-parent commits: total -0.05%",
+          "holds": true
+        },
+        {
+          "row": "Revert a change, then re-apply it",
+          "rule": "Total W within ±5%",
+          "measured": "commit d086db85: total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Rewrite authors, dates or messages",
+          "rule": "Total W exact",
+          "measured": "total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Add generated, vendored or minified files",
+          "rule": "Total W (other than .gitattributes) exact",
+          "measured": "total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Add a new, original function that three files import",
+          "rule": "W and D of its file rise; the function has W > 0 and D = 3",
+          "measured": "file W +2.64%, D 5 → 8; function W 340.8947, D 3",
+          "holds": true
+        },
+        {
+          "row": "Merge cleanly",
+          "rule": "The merge is credited with nothing",
+          "measured": "merge credited with 0 lines",
+          "holds": true
+        },
+        {
+          "row": "Resolve a conflict by hand in a merge",
+          "rule": "The merge is credited with exactly the resolved line",
+          "measured": "merge credited with 1 line(s), surv [1.0]",
+          "holds": true
+        },
+        {
+          "row": "A small real edit (one changed value)",
+          "rule": "Not mechanical, and credited",
+          "measured": "mechanical: False; credited W 6.0",
+          "holds": true
+        },
+        {
+          "row": "Scan a shallow clone with default settings",
+          "rule": "W and totals null, never 0",
+          "measured": "total W None, reason shallow_clone",
+          "holds": true
+        },
+        {
+          "row": "Re-scan the same inputs",
+          "rule": "Byte-identical output",
+          "measured": "identical",
+          "holds": true
+        }
+      ]
+    },
+    {
+      "name": "requests",
+      "revision": "611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60",
+      "cold_scan_seconds": 21.3,
+      "targets": {
+        "file": "src/requests/utils.py",
+        "other_file": "src/requests/models.py",
+        "readded_file": "docs/conf.py",
+        "function": "super_len",
+        "function_lines": [
+          160,
+          228
+        ],
+        "importers_added": [
+          "src/requests/cookies.py",
+          "src/requests/_types.py",
+          "src/requests/api.py"
+        ]
+      },
+      "base": {
+        "total_W": 458365.4349,
+        "file_W": 10204.0952,
+        "function_W": 743.9618,
+        "other_file_W": 9150.1369
+      },
+      "rows": [
+        {
+          "row": "Whitespace-only reformat",
+          "rule": "File W and total exact",
+          "measured": "file +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Non-whitespace reformat, listed",
+          "rule": "File W within ±3% (±2% on fixtures)",
+          "measured": "114 lines changed; file -0.04%",
+          "holds": true
+        },
+        {
+          "row": "The same reformat, not listed",
+          "rule": "File W within ±10%",
+          "measured": "114 lines changed; file -0.04%; detected as mechanical: True",
+          "holds": true
+        },
+        {
+          "row": "Rename or move a file",
+          "rule": "File W and total exact",
+          "measured": "file +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Move a function to another file",
+          "rule": "Total W within ±5%; W follows the function",
+          "measured": "total +0.00%; function W +0.00% in its new file",
+          "holds": true
+        },
+        {
+          "row": "Split a file in two",
+          "rule": "W over the two files within ±5% of the original",
+          "measured": "files +0.00%, total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Copy code into a new file",
+          "rule": "Rise at most 5% of the copied code's W",
+          "measured": "rise 0.0% of the function's W",
+          "holds": true
+        },
+        {
+          "row": "Copy code within the same file",
+          "rule": "Rise at most 5% of the copied code's W",
+          "measured": "rise 0.0% of the function's W",
+          "holds": true
+        },
+        {
+          "row": "Copy code into an existing unrelated file",
+          "rule": "Documented limit with -C -C",
+          "measured": "rise 103.8% of the function's W",
+          "holds": null
+        },
+        {
+          "row": "Split one commit into many small ones",
+          "rule": "W at most +10%",
+          "measured": "385 lines in 10-line commits: -1.53%",
+          "holds": true
+        },
+        {
+          "row": "Squash a branch into one commit",
+          "rule": "Total W at most +5%",
+          "measured": "last 20 first-parent commits: total -0.00%",
+          "holds": true
+        },
+        {
+          "row": "Revert a change, then re-apply it",
+          "rule": "Total W within ±5%",
+          "measured": "commit 6f66281a: total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Rewrite authors, dates or messages",
+          "rule": "Total W exact",
+          "measured": "total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Add generated, vendored or minified files",
+          "rule": "Total W (other than .gitattributes) exact",
+          "measured": "total +0.00%",
+          "holds": true
+        },
+        {
+          "row": "Add a new, original function that three files import",
+          "rule": "W and D of its file rise; the function has W > 0 and D = 3",
+          "measured": "file W +3.50%, D 5 → 8; function W 319.4211, D 3",
+          "holds": true
+        },
+        {
+          "row": "Merge cleanly",
+          "rule": "The merge is credited with nothing",
+          "measured": "merge credited with 0 lines",
+          "holds": true
+        },
+        {
+          "row": "Resolve a conflict by hand in a merge",
+          "rule": "The merge is credited with exactly the resolved line",
+          "measured": "merge credited with 1 line(s), surv [1.0]",
+          "holds": true
+        },
+        {
+          "row": "A small real edit (one changed value)",
+          "rule": "Not mechanical, and credited",
+          "measured": "mechanical: False; credited W 6.0",
+          "holds": true
+        },
+        {
+          "row": "Scan a shallow clone with default settings",
+          "rule": "W and totals null, never 0",
+          "measured": "total W None, reason shallow_clone",
+          "holds": true
+        },
+        {
+          "row": "Re-scan the same inputs",
+          "rule": "Byte-identical output",
+          "measured": "identical",
+          "holds": true
+        }
+      ]
+    }
+  ]
+}

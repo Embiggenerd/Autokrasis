@@ -1,0 +1,706 @@
+{
+  "excluded": [],
+  "files": [
+    {
+      "D": 0,
+      "V": 0.0,
+      "W": 0,
+      "class": "code",
+      "commits": 0,
+      "confidence": "full",
+      "path": "shop/__init__.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.5546,
+      "W": 187.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "shop/api.py",
+      "reasons": {}
+    },
+    {
+      "D": 1,
+      "V": 9.9715,
+      "W": 250.0,
+      "class": "sensitive",
+      "commits": 1,
+      "confidence": "full",
+      "path": "shop/auth.py",
+      "reasons": {}
+    },
+    {
+      "D": 2,
+      "V": 10.3831,
+      "W": 147.3846,
+      "class": "sensitive",
+      "commits": 2,
+      "confidence": "full",
+      "path": "shop/billing.py",
+      "reasons": {}
+    },
+    {
+      "D": 2,
+      "V": 10.7474,
+      "W": 190.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "shop/db.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 5.6724,
+      "W": 50.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "shop/legacy.py",
+      "reasons": {}
+    },
+    {
+      "D": 3,
+      "V": 11.9176,
+      "W": 240.7895,
+      "class": "code",
+      "commits": 2,
+      "confidence": "full",
+      "path": "shop/models.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.4919,
+      "W": 89.0,
+      "class": "code",
+      "commits": 2,
+      "confidence": "full",
+      "path": "shop/reports.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.5078,
+      "W": 90.0,
+      "class": "code",
+      "commits": 1,
+      "confidence": "full",
+      "path": "shop/text.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.5236,
+      "W": 91.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/conftest.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.8765,
+      "W": 234.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/test_api.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.8202,
+      "W": 112.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/test_db.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.5157,
+      "W": 182.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/test_invoices.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.4179,
+      "W": 170.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/test_login.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.7108,
+      "W": 208.5,
+      "class": "test",
+      "commits": 2,
+      "confidence": "full",
+      "path": "tests/test_models.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 7.1898,
+      "W": 145.0,
+      "class": "test",
+      "commits": 1,
+      "confidence": "full",
+      "path": "tests/test_reports.py",
+      "reasons": {}
+    },
+    {
+      "D": 0,
+      "V": 6.7325,
+      "W": 105.3333,
+      "class": "test",
+      "commits": 2,
+      "confidence": "full",
+      "path": "tests/test_text.py",
+      "reasons": {}
+    }
+  ],
+  "scan": {
+    "allow_shallow": false,
+    "config_hash": "dbf419604b6ee869",
+    "coverage": {
+      "D_null": 0,
+      "V_null": 0,
+      "W_null": 0,
+      "code_files": 17,
+      "dynamic_imports": 0,
+      "eligible": 17,
+      "excluded": 0,
+      "imports": 25,
+      "imports_resolved": 21,
+      "imports_type_only": 0,
+      "imports_unresolved": 4,
+      "imports_via_reexport": 0,
+      "parse_errors": 0,
+      "tracked": 17
+    },
+    "formula": "vscore-formula/4",
+    "git": "2.52.0",
+    "python": "3.14.7",
+    "revision": "b7dad21319ae53af233f4b00baa0fb8e430b0cfe",
+    "scorer": "0.1.0",
+    "shallow": false,
+    "zstd": {
+      "level": 9,
+      "library": "1.5.7",
+      "mode": "raw-content-prefix"
+    }
+  },
+  "symbols": [
+    {
+      "D": 0,
+      "V": 7.0433,
+      "W": 130.9,
+      "kind": "function",
+      "lines": [
+        4,
+        10
+      ],
+      "name": "checkout",
+      "node": "sym:shop/api.py::checkout",
+      "path": "shop/api.py"
+    },
+    {
+      "D": 0,
+      "V": 4.7717,
+      "W": 26.3158,
+      "kind": "function",
+      "lines": [
+        6,
+        7
+      ],
+      "name": "_digest",
+      "node": "sym:shop/auth.py::_digest",
+      "path": "shop/auth.py"
+    },
+    {
+      "D": 0,
+      "V": 5.3389,
+      "W": 39.4737,
+      "kind": "function",
+      "lines": [
+        10,
+        12
+      ],
+      "name": "set_password",
+      "node": "sym:shop/auth.py::set_password",
+      "path": "shop/auth.py"
+    },
+    {
+      "D": 0,
+      "V": 6.0615,
+      "W": 65.7895,
+      "kind": "function",
+      "lines": [
+        15,
+        19
+      ],
+      "name": "login",
+      "node": "sym:shop/auth.py::login",
+      "path": "shop/auth.py"
+    },
+    {
+      "D": 0,
+      "V": 4.0,
+      "W": 15.0,
+      "kind": "variable",
+      "lines": [
+        3,
+        3
+      ],
+      "name": "TAX_RATE",
+      "node": "sym:shop/billing.py::TAX_RATE",
+      "path": "shop/billing.py"
+    },
+    {
+      "D": 0,
+      "V": 5.2421,
+      "W": 36.8462,
+      "kind": "function",
+      "lines": [
+        6,
+        8
+      ],
+      "name": "subtotal",
+      "node": "sym:shop/billing.py::subtotal",
+      "path": "shop/billing.py"
+    },
+    {
+      "D": 0,
+      "V": 4.7508,
+      "W": 25.9231,
+      "kind": "function",
+      "lines": [
+        11,
+        12
+      ],
+      "name": "total",
+      "node": "sym:shop/billing.py::total",
+      "path": "shop/billing.py"
+    },
+    {
+      "D": 0,
+      "V": 3.3288,
+      "W": 9.0476,
+      "kind": "variable",
+      "lines": [
+        3,
+        3
+      ],
+      "name": "_tables",
+      "node": "sym:shop/db.py::_tables",
+      "path": "shop/db.py"
+    },
+    {
+      "D": 0,
+      "V": 4.2551,
+      "W": 18.0952,
+      "kind": "function",
+      "lines": [
+        6,
+        7
+      ],
+      "name": "table",
+      "node": "sym:shop/db.py::table",
+      "path": "shop/db.py"
+    },
+    {
+      "D": 0,
+      "V": 4.8147,
+      "W": 27.1429,
+      "kind": "function",
+      "lines": [
+        10,
+        12
+      ],
+      "name": "put",
+      "node": "sym:shop/db.py::put",
+      "path": "shop/db.py"
+    },
+    {
+      "D": 0,
+      "V": 4.8147,
+      "W": 27.1429,
+      "kind": "function",
+      "lines": [
+        15,
+        17
+      ],
+      "name": "get",
+      "node": "sym:shop/db.py::get",
+      "path": "shop/db.py"
+    },
+    {
+      "D": 0,
+      "V": 4.2551,
+      "W": 18.0952,
+      "kind": "function",
+      "lines": [
+        20,
+        21
+      ],
+      "name": "clear",
+      "node": "sym:shop/db.py::clear",
+      "path": "shop/db.py"
+    },
+    {
+      "D": 0,
+      "V": 5.6724,
+      "W": 50.0,
+      "kind": "function",
+      "lines": [
+        1,
+        2
+      ],
+      "name": "old_discount",
+      "node": "sym:shop/legacy.py::old_discount",
+      "path": "shop/legacy.py"
+    },
+    {
+      "D": 0,
+      "V": 6.0919,
+      "W": 67.2105,
+      "kind": "function",
+      "lines": [
+        4,
+        7
+      ],
+      "name": "create_user",
+      "node": "sym:shop/models.py::create_user",
+      "path": "shop/models.py"
+    },
+    {
+      "D": 0,
+      "V": 4.421,
+      "W": 20.4211,
+      "kind": "function",
+      "lines": [
+        10,
+        11
+      ],
+      "name": "get_user",
+      "node": "sym:shop/models.py::get_user",
+      "path": "shop/models.py"
+    },
+    {
+      "D": 0,
+      "V": 5.3869,
+      "W": 40.8421,
+      "kind": "function",
+      "lines": [
+        14,
+        17
+      ],
+      "name": "create_order",
+      "node": "sym:shop/models.py::create_order",
+      "path": "shop/models.py"
+    },
+    {
+      "D": 0,
+      "V": 4.421,
+      "W": 20.4211,
+      "kind": "function",
+      "lines": [
+        20,
+        21
+      ],
+      "name": "get_order",
+      "node": "sym:shop/models.py::get_order",
+      "path": "shop/models.py"
+    },
+    {
+      "D": 0,
+      "V": 5.1779,
+      "W": 35.2,
+      "kind": "function",
+      "lines": [
+        4,
+        5
+      ],
+      "name": "revenue",
+      "node": "sym:shop/reports.py::revenue",
+      "path": "shop/reports.py"
+    },
+    {
+      "D": 0,
+      "V": 5.2095,
+      "W": 36.0,
+      "kind": "function",
+      "lines": [
+        4,
+        5
+      ],
+      "name": "slugify",
+      "node": "sym:shop/text.py::slugify",
+      "path": "shop/text.py"
+    },
+    {
+      "D": 0,
+      "V": 5.5392,
+      "W": 45.5,
+      "kind": "function",
+      "lines": [
+        6,
+        10
+      ],
+      "name": "fresh_db",
+      "node": "sym:tests/conftest.py::fresh_db",
+      "path": "tests/conftest.py"
+    },
+    {
+      "D": 0,
+      "V": 5.4445,
+      "W": 42.5455,
+      "kind": "function",
+      "lines": [
+        4,
+        7
+      ],
+      "name": "setup",
+      "node": "sym:tests/test_api.py::setup",
+      "path": "tests/test_api.py"
+    },
+    {
+      "D": 0,
+      "V": 5.0404,
+      "W": 31.9091,
+      "kind": "function",
+      "lines": [
+        10,
+        12
+      ],
+      "name": "test_checkout_ok",
+      "node": "sym:tests/test_api.py::test_checkout_ok",
+      "path": "tests/test_api.py"
+    },
+    {
+      "D": 0,
+      "V": 5.0404,
+      "W": 31.9091,
+      "kind": "function",
+      "lines": [
+        15,
+        17
+      ],
+      "name": "test_checkout_wrong_password",
+      "node": "sym:tests/test_api.py::test_checkout_wrong_password",
+      "path": "tests/test_api.py"
+    },
+    {
+      "D": 0,
+      "V": 5.0404,
+      "W": 31.9091,
+      "kind": "function",
+      "lines": [
+        20,
+        22
+      ],
+      "name": "test_checkout_unknown_order",
+      "node": "sym:tests/test_api.py::test_checkout_unknown_order",
+      "path": "tests/test_api.py"
+    },
+    {
+      "D": 0,
+      "V": 5.1127,
+      "W": 33.6,
+      "kind": "function",
+      "lines": [
+        4,
+        6
+      ],
+      "name": "test_put_and_get",
+      "node": "sym:tests/test_db.py::test_put_and_get",
+      "path": "tests/test_db.py"
+    },
+    {
+      "D": 0,
+      "V": 4.5484,
+      "W": 22.4,
+      "kind": "function",
+      "lines": [
+        9,
+        10
+      ],
+      "name": "test_missing_row",
+      "node": "sym:tests/test_db.py::test_missing_row",
+      "path": "tests/test_db.py"
+    },
+    {
+      "D": 0,
+      "V": 5.1344,
+      "W": 34.125,
+      "kind": "function",
+      "lines": [
+        4,
+        6
+      ],
+      "name": "setup_order",
+      "node": "sym:tests/test_invoices.py::setup_order",
+      "path": "tests/test_invoices.py"
+    },
+    {
+      "D": 0,
+      "V": 5.1344,
+      "W": 34.125,
+      "kind": "function",
+      "lines": [
+        9,
+        11
+      ],
+      "name": "test_subtotal",
+      "node": "sym:tests/test_invoices.py::test_subtotal",
+      "path": "tests/test_invoices.py"
+    },
+    {
+      "D": 0,
+      "V": 5.1344,
+      "W": 34.125,
+      "kind": "function",
+      "lines": [
+        14,
+        16
+      ],
+      "name": "test_total_includes_tax",
+      "node": "sym:tests/test_invoices.py::test_total_includes_tax",
+      "path": "tests/test_invoices.py"
+    },
+    {
+      "D": 0,
+      "V": 5.3576,
+      "W": 40.0,
+      "kind": "function",
+      "lines": [
+        4,
+        7
+      ],
+      "name": "test_login_succeeds_with_right_password",
+      "node": "sym:tests/test_login.py::test_login_succeeds_with_right_password",
+      "path": "tests/test_login.py"
+    },
+    {
+      "D": 0,
+      "V": 5.3576,
+      "W": 40.0,
+      "kind": "function",
+      "lines": [
+        10,
+        13
+      ],
+      "name": "test_login_fails_with_wrong_password",
+      "node": "sym:tests/test_login.py::test_login_fails_with_wrong_password",
+      "path": "tests/test_login.py"
+    },
+    {
+      "D": 0,
+      "V": 4.3923,
+      "W": 20.0,
+      "kind": "function",
+      "lines": [
+        16,
+        17
+      ],
+      "name": "test_login_fails_for_unknown_user",
+      "node": "sym:tests/test_login.py::test_login_fails_for_unknown_user",
+      "path": "tests/test_login.py"
+    },
+    {
+      "D": 0,
+      "V": 5.3121,
+      "W": 38.7273,
+      "kind": "function",
+      "lines": [
+        6,
+        8
+      ],
+      "name": "test_user_round_trip",
+      "node": "sym:tests/test_models.py::test_user_round_trip",
+      "path": "tests/test_models.py"
+    },
+    {
+      "D": 0,
+      "V": 4.9156,
+      "W": 29.1818,
+      "kind": "function",
+      "lines": [
+        11,
+        13
+      ],
+      "name": "test_rejects_bad_email",
+      "node": "sym:tests/test_models.py::test_rejects_bad_email",
+      "path": "tests/test_models.py"
+    },
+    {
+      "D": 0,
+      "V": 4.9156,
+      "W": 29.1818,
+      "kind": "function",
+      "lines": [
+        16,
+        18
+      ],
+      "name": "test_order_needs_user",
+      "node": "sym:tests/test_models.py::test_order_needs_user",
+      "path": "tests/test_models.py"
+    },
+    {
+      "D": 0,
+      "V": 6.5177,
+      "W": 90.625,
+      "kind": "function",
+      "lines": [
+        4,
+        8
+      ],
+      "name": "test_revenue",
+      "node": "sym:tests/test_reports.py::test_revenue",
+      "path": "tests/test_reports.py"
+    },
+    {
+      "D": 0,
+      "V": 4.6049,
+      "W": 23.3333,
+      "kind": "function",
+      "lines": [
+        4,
+        5
+      ],
+      "name": "test_slugify",
+      "node": "sym:tests/test_text.py::test_slugify",
+      "path": "tests/test_text.py"
+    },
+    {
+      "D": 0,
+      "V": 4.6049,
+      "W": 23.3333,
+      "kind": "function",
+      "lines": [
+        8,
+        9
+      ],
+      "name": "test_slugify_empty",
+      "node": "sym:tests/test_text.py::test_slugify_empty",
+      "path": "tests/test_text.py"
+    }
+  ],
+  "total": {
+    "V": 11.2837,
+    "W": 2492.0074
+  }
+}

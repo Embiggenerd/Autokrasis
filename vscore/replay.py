@@ -36,7 +36,7 @@ def load_sessions(path: str | Path) -> tuple[list[dict], dict[str, dict]]:
 
 
 def replay(steps: list[dict], reports: dict[str, dict], repo_root: str, prices: dict, cfg: Config) -> dict:
-    enforce = replace(cfg, gate_mode="enforce")
+    enforce = replace(cfg, gate_mode="enforce", level=None)
     summary = {p: {"harmful": 0, "stopped": 0, "contained": 0, "missed": 0, "necessary": 0,
                    "false_interventions": 0, "approvals": 0} for p in POLICIES}
     decisions = []

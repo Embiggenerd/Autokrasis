@@ -65,12 +65,23 @@ def test_warn_mode_reports_instead_of_blocking(shop):
 
 
 def test_reversible_deletion_within_budget_is_allowed_after_snapshot(shop):
-    report = {"impact": "degraded", "users_affected": 50, "nodes": ["file:app/core.py"],
+    importers = [f"file:app/{name}.py" for name in "abcdef"]
+    report = {"impact": "degraded", "users_affected": 50, "nodes": ["file:app/core.py", *importers],
               "evidence": [{"kind": "reproduced_by_harness"}]}
     decision = run(shop, "rm app/core.py", report=report)
     assert decision.verdict == "allow_after_snapshot"
     assert decision.price.reversible
     assert run(shop, "rm app/core.py").verdict == "block"  # 6 importers: too much harm for the default budget
+
+
+def test_breaking_importers_spends_outside_the_evidence(shop):
+    """Evidence about a module covers the module: the six files importing it break when it goes, and
+    that harm falls outside the evidence unless it names them too."""
+    report = {"impact": "degraded", "users_affected": 50, "nodes": ["file:app/core.py"],
+              "evidence": [{"kind": "reproduced_by_harness"}]}
+    decision = run(shop, "rm app/core.py", report=report)
+    assert decision.verdict == "block"
+    assert "falls outside what the evidence is about" in decision.message()
 
 
 def test_irreversible_but_covered_needs_approval(shop):
