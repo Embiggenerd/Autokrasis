@@ -99,7 +99,7 @@ class Context:
         nodes = self.tables.get(bare, [])
         if database:
             nodes = [n for n in nodes if n.startswith(f"table:{database}.")] or nodes
-        return nodes or [f"table:?.?.{bare}"]
+        return nodes or [f"table:{database or '?'}.?.{bare}"]
 
     def all_tables(self, database: str | None = None) -> list[str]:
         nodes = sorted({n for ns in self.tables.values() for n in ns})
@@ -307,6 +307,7 @@ def _sql_client(args: list[str], raw: str, ctx: Context) -> tuple[list[Target], 
         positional = [a for a in args[1:] if not a.startswith("-")]
         if positional:
             path = ctx.absolute(positional[0])
+            _sniff(path, ctx)
             database = ctx.databases.get(path, os.path.splitext(os.path.basename(positional[0]))[0])
             sql_parts = positional[1:]
     else:

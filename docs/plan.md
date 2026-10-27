@@ -12,8 +12,8 @@ vscore gives the agent that sense of proportion. It measures the work stored in 
 
 `vscore compare` weighs two numbers: the W of the files and functions the bug is about, and the W the action would destroy. The action runs when it destroys at most 2× the bug's W (`compare_limit`), with the bug's W floored at 500 (`compare_floor_w`) so a bug in a tiny or new file still allows small changes.
 
-- **Destroyed:** files deleted, overwritten or mostly rewritten, with their uncommitted work; top-level functions and classes removed; uncommitted work discarded.
-- **Unmeasured, so stopped outright:** dropping or emptying a database table, rewriting Git history, and removing files named by a command vscore cannot read. W cannot weigh these against code.
+- **Destroyed:** files deleted, overwritten or mostly rewritten, with their uncommitted work; top-level functions and classes removed; uncommitted work discarded; SQLite tables dropped, emptied or rewritten, or whose database file is deleted or overwritten. A table's W is the compressed size of its current rows, an experimental proxy for the work in the data; rows deleted by a `WHERE` count as 0 for now.
+- **Unmeasured, so stopped outright:** tables of other databases, SQLite tables without a rowid, rewriting Git history, and removing files named by a command vscore cannot read. W cannot weigh these.
 - **The bug** is named with `--bug` (files, directories, globs or `path::function`), `VSCORE_BUG`, or the `nodes` of `.vscore/report.json`.
 
 On Flask, with a bug in `src/flask/app.py` (W 14,422), `rm -rf src` destroys W 83,730, 5.8× the bug, and stops; deleting the bug's own file (1.0×) or one smaller module runs.

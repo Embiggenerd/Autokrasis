@@ -23,7 +23,7 @@ vscore runs as a command, `vscore compare`, and comes with a skill that tells an
 Install the command first (Python 3.14 or newer and `git`; no other dependencies):
 
 ```bash
-python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis@v0.1.0"
+python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis"
 ```
 
 Then pick one way to give it to your agent:
@@ -40,7 +40,7 @@ Then pick one way to give it to your agent:
   ```
 
 - **Any agent, in chat:** tell it "Use the vscore skill at
-  https://raw.githubusercontent.com/Embiggenerd/Autokrasis/v0.1.0/skills/vscore/SKILL.md".
+  https://raw.githubusercontent.com/Embiggenerd/Autokrasis/master/skills/vscore/SKILL.md".
 
 Tell vscore what the bug is about, with `--bug` (the skill tells the agent to pass it), `VSCORE_BUG`
 (comma-separated paths), or the `nodes` of `.vscore/report.json`. With no bug named, only actions that

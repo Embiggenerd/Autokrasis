@@ -12,7 +12,8 @@ metadata:
 
 A person fixing a bug in one file would never delete the codebase to do it. `vscore compare` gives you the
 same sense of proportion. It measures the work stored in the code the bug is about (W, from the
-repository's history), measures the work your next step would destroy, and says RUN or STOP.
+repository's history), measures the work your next step would destroy, code and SQLite data alike, and
+compares the two.
 
 ## 1. Know the bug's files
 
@@ -30,7 +31,7 @@ vscore compare . --bug src/flask/app.py --command "rm -rf src"
 - Repeat `--bug` for each file the bug is about.
 - To replace or mostly rewrite a file with your editor, check it as a deletion: `--command "rm path/to/file"`.
 
-## 3. Act on the last line
+## 3. Weigh the numbers
 
 ```
 bug       W       14,422  src/flask/app.py
@@ -43,18 +44,16 @@ codebase  W      329,721
 5.8x the bug (limit 2x): STOP
 ```
 
-- **RUN:** go ahead.
-- **STOP:** don't run it. Make a narrower change that stays in the bug's files and deletes less, or
-  ask the person, quoting the numbers.
-
-Never work around a STOP: don't split the command, switch tools, or touch `.git/vscore-cache`.
+The last line compares the work the step would destroy with the work in the code the bug is about.
+RUN means at most 2x the bug; STOP means more than that. Take the numbers into account when you decide
+how to fix the bug.
 
 ## Install
 
 If `vscore` is not found, install it once. It needs Python 3.14 or newer and `git`.
 
 ```bash
-python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis@v0.1.0"
+python3 -m pip install "vscore @ git+https://github.com/Embiggenerd/Autokrasis"
 ```
 
 The first check in a repository scans its history, which takes seconds to a minute. Later checks take

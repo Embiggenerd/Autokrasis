@@ -7,9 +7,12 @@ same sense of proportion. W is surviving compressed work in bytes (docs/plan.md,
 - The action's W is what it would delete or replace: files deleted, overwritten or mostly rewritten (with
   their uncommitted work), top-level functions and classes removed, uncommitted work discarded.
 
+- A SQLite table's W is the compressed size of its current rows, an experimental proxy for the work in
+  the data; losing the table, or the database file, destroys it. Rows deleted by a `WHERE` count as 0.
+
 The action runs when it destroys at most `compare_limit` times the bug's W (floored at `compare_floor_w`,
-so a bug in a tiny or new file still allows small changes). Losses W cannot weigh against code, such as
-dropping or emptying a database table, rewriting Git history, or removing files a pipe names, stop it.
+so a bug in a tiny or new file still allows small changes). Losses W cannot weigh, such as tables of other
+databases, tables without a rowid, rewriting Git history, or removing files a pipe names, stop it.
 """
 
 from __future__ import annotations
@@ -17,13 +20,14 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 from vscore import FORMULA_VERSION
 from vscore.actions import Context, from_tool_call, malformed
-from vscore.adapters.history import info_bytes
+from vscore.adapters.history import compressed_size, info_bytes
 from vscore.audit import AuditLog
 from vscore.config import Config
 from vscore.gitrepo import GitError, Repo, decode_path
@@ -117,7 +121,8 @@ def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: st
     known = scores(root, cfg)
     repo = Repo(root)
     tracked = {decode_path(p) for p in repo.run("ls-files", "-z").split(b"\0") if p}
-    action = from_tool_call(tool_name, tool_input, Context(repo_root=root, cwd=cwd or root, tracked=tracked))
+    ctx = Context(repo_root=root, cwd=cwd or root, tracked=tracked)
+    action = from_tool_call(tool_name, tool_input, ctx)
     lost: dict[str, float] = {}
     unmeasured: list[str] = []
     gone = {t.node[5:] for t in action.targets if t.node.startswith("file:") and t.effect in _LOSES}
@@ -132,7 +137,16 @@ def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: st
             paths = target.detail.split() if node == "git:worktree" and not target.detail.startswith("git") else None
             lost[f"uncommitted work ({node[4:]})"] = _uncommitted(repo, cfg, paths, untracked=node == "git:untracked")
         elif node.startswith("table:") and target.effect in _TABLE_LOSS:
-            unmeasured.append(f"would {target.effect.replace('_', ' ')} {node[6:]}")
+            database, _, table = node[6:].split(".", 2)
+            paths = [path for path, name in ctx.databases.items() if name == database]
+            if not paths:
+                unmeasured.append(f"would {target.effect.replace('_', ' ')} {node[6:]}")
+            for path in paths:
+                for label, w in _tables_w(path, table, cfg.zstd_level, ctx.rel(path) or path):
+                    if w is None:
+                        unmeasured.append(label)
+                    else:
+                        lost[label] = w
         elif node == "git:history":
             unmeasured.append("rewrites Git history")
         elif node in ("file:?", "action:?") or target.effect == "unsupported":
@@ -140,6 +154,36 @@ def compare(repo_root, bug: list[str], tool_name: str, tool_input: dict, cwd: st
     files = sorted(((p, w) for p, w in lost.items() if w > 0), key=lambda pw: -pw[1])
     return Comparison(list(bug), _bug_w(bug, known), sum(lost.values()), known["total"], cfg.compare_limit,
                       cfg.compare_floor_w, action.summary, files, list(dict.fromkeys(unmeasured)))
+
+
+def _tables_w(path: str, table: str, level: int, shown: str) -> list[tuple[str, float | None]]:
+    """W of one table of a SQLite file, or of every table for `*`: the zstd-compressed size of its rows,
+    each a JSON array of its values in rowid order (blobs as hex), one per line, read from a read-only
+    snapshot. A table without a rowid, or one that cannot be read, has no W (None)."""
+    found = []
+    try:
+        db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return [(f"would lose {shown}, which could not be read", None)]
+    try:
+        db.execute("BEGIN")
+        names = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                                          "AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+        for name in names if table == "*" else [n for n in names if n.lower() == table]:
+            try:
+                rows = db.execute(f'SELECT * FROM "{name}" ORDER BY rowid').fetchall()
+            except sqlite3.OperationalError:
+                found.append((f"would lose table {name} in {shown}, which has no rowid", None))
+                continue
+            text = "".join(json.dumps([v.hex() if isinstance(v, bytes) else v for v in row], ensure_ascii=False) + "\n"
+                           for row in rows)
+            count = f"{len(rows):,} row{'' if len(rows) == 1 else 's'}"
+            found.append((f"{shown}: table {name} ({count})", float(compressed_size(text.encode(), level))))
+    except sqlite3.Error:
+        found.append((f"would lose {shown}, which could not be read", None))
+    finally:
+        db.close()
+    return found
 
 
 def _uncommitted(repo: Repo, cfg: Config, paths: list[str] | None, untracked: bool = False) -> float:

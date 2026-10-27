@@ -4,7 +4,7 @@
 # installed it says so and exits 1, a non-blocking error, so the call goes ahead unchecked.
 if ! command -v vscore >/dev/null 2>&1; then
   echo "vscore is not installed, so this call was not checked. Install it with:" >&2
-  echo "  python3 -m pip install \"vscore @ git+https://github.com/Embiggenerd/Autokrasis@v0.1.0\"" >&2
+  echo "  python3 -m pip install \"vscore @ git+https://github.com/Embiggenerd/Autokrasis\"" >&2
   exit 1
 fi
 exec vscore hook claude-code

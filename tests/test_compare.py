@@ -71,11 +71,68 @@ def test_deleting_one_unrelated_module_of_the_same_size_runs_two_do_not(repo):
 
 
 def test_what_cannot_be_weighed_against_code_stops(repo):
-    for command in ("rm shop.sqlite", "sqlite3 shop.sqlite 'DROP TABLE orders'", "git push --force",
-                    "cat files.txt | xargs rm"):
+    for command in ("git push --force", "cat files.txt | xargs rm"):
         result = run(repo, command)
         assert not result.allowed and result.unmeasured, command
-    assert run(repo, "sqlite3 shop.sqlite 'DELETE FROM orders WHERE id = 1'").allowed  # a few rows
+
+
+def expected_w(path, table) -> int:
+    """W of a table, written out here as the plan specifies: each row a JSON array of its values in
+    rowid order (blobs as hex), one row per line, compressed with zstd at level 9."""
+    from compression import zstd
+
+    db = sqlite3.connect(path)
+    rows = db.execute(f'SELECT * FROM "{table}" ORDER BY rowid').fetchall()
+    db.close()
+    text = "".join(json.dumps([v.hex() if isinstance(v, bytes) else v for v in row], ensure_ascii=False) + "\n"
+                   for row in rows)
+    return len(zstd.compress(text.encode(), level=9))
+
+
+@pytest.fixture
+def data(repo):
+    """shop.sqlite gets real data: 300 varied todos and a small notes table."""
+    db = sqlite3.connect(repo.path / "shop.sqlite")
+    db.executescript("CREATE TABLE todos (id INTEGER PRIMARY KEY, title TEXT, due TEXT, done INTEGER, photo BLOB);"
+                     "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT);")
+    db.executemany("INSERT INTO todos (title, due, done, photo) VALUES (?, ?, ?, ?)",
+                   [(f"task {hashlib.sha256(str(i).encode()).hexdigest()[:24]}", f"2026-{i % 12 + 1:02d}-{i % 28 + 1:02d}",
+                     i % 2, bytes([i % 256]) if i % 10 == 0 else None) for i in range(300)])
+    db.executemany("INSERT INTO notes (body) VALUES (?)", [(f"note {i}",) for i in range(5)])
+    db.commit()
+    db.close()
+    return repo
+
+
+def test_a_sqlite_table_has_the_w_of_its_rows(data):
+    db = data.path / "shop.sqlite"
+    dropped = run(data, "sqlite3 shop.sqlite 'DROP TABLE todos'")
+    assert not dropped.unmeasured
+    assert dropped.destroyed == expected_w(db, "todos")
+    assert any("todos" in label and "300 rows" in label for label, _ in dropped.files)
+    assert run(data, "sqlite3 shop.sqlite 'DROP TABLE todos'").destroyed == dropped.destroyed  # deterministic
+
+
+def test_removing_the_database_file_destroys_every_table(data):
+    db = data.path / "shop.sqlite"
+    removed = run(data, "rm shop.sqlite")
+    assert not removed.unmeasured
+    assert removed.destroyed == sum(expected_w(db, t) for t in ("orders", "todos", "notes"))
+    assert removed.ratio > LIMIT and not removed.allowed  # 300 varied rows outweigh the bug's file
+
+
+def test_deleting_some_rows_destroys_nothing_yet(data):
+    result = run(data, "sqlite3 shop.sqlite 'DELETE FROM todos WHERE id = 5'")
+    assert result.destroyed == 0 and result.allowed  # a known limit: WHERE deletes are not weighed yet
+
+
+def test_a_table_without_rowid_is_unmeasured(data):
+    db = sqlite3.connect(data.path / "kv.sqlite")
+    db.executescript("CREATE TABLE kv (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID; INSERT INTO kv VALUES ('a', 'b');")
+    db.commit()
+    db.close()
+    result = run(data, "sqlite3 kv.sqlite 'DROP TABLE kv'")
+    assert result.unmeasured and not result.allowed
 
 
 def test_without_a_bug_only_small_losses_run(repo):

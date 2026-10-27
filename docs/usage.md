@@ -42,8 +42,9 @@ What counts as destroyed:
 - files that are deleted, overwritten or mostly rewritten, with their uncommitted work
 - top-level functions and classes that are removed
 - uncommitted work that is discarded
+- SQLite tables that are dropped, emptied or rewritten, or whose database file is deleted or overwritten: a table's W is the compressed size of its current rows, an experimental proxy for the work in the data. Rows deleted by a `WHERE` count as 0 for now.
 
-Losses W cannot weigh against code are stopped outright: dropping or emptying a database table, rewriting Git history, and removing files named by a command vscore cannot read. A bug in a tiny or new file still allows changes up to W 500 (`compare_floor_w`). The limit is `--limit` or `compare_limit`. `--json` prints the result as JSON; the exit code is 0 to run and 4 to stop.
+Losses W cannot weigh are stopped outright: tables of other databases, SQLite tables without a rowid, rewriting Git history, and removing files named by a command vscore cannot read. A bug in a tiny or new file still allows changes up to W 500 (`compare_floor_w`). The limit is `--limit` or `compare_limit`. `--json` prints the result as JSON; the exit code is 0 to run and 4 to stop.
 
 The bug is given with `--bug`, which takes files, directories, globs or `path::function` and can repeat. Otherwise it comes from `VSCORE_BUG` (comma-separated), or from the `nodes` of `.vscore/report.json`. A file write or edit is checked with `--tool Write` (or `Edit`) and `--input` holding the tool call's JSON.
 
